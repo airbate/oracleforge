@@ -15,22 +15,32 @@ from openai import OpenAI
 
 from config import settings
 from ForumEngine.monitor import start_forum_monitoring, stop_forum_monitoring, get_forum_log
-from SignalEngine.schema import TradingSignal, SignalStatus
-from SignalEngine.parser import SignalParser
+from ForumEngine.debate import DebateEngine
+from SignalEngine.schema import TradingSignal, SignalStatus, Direction, Horizon
+from SignalEngine.schema import aggregate_confidence, calc_sl_tp
 from SignalEngine.db import save_signal, get_recent_signals, mark_signal_result
+from SignalEngine.memory import get_trader_memory
 from RiskManager.risk_manager import RiskManager, RiskConfig
+from RiskManager.committee import RiskCommittee
 from InjectiveExecutor.executor import InjectiveExecutor
 from InjectiveExecutor.mcp_interface import MCPInterface
 from OnChainSentinel.tools.coingecko_client import CoinGeckoClient
+from SocialSentinel.agent import SocialSentinelAgent
+from OnChainSentinel.agent import OnChainSentinelAgent
+from MacroSentinel.agent import MacroSentinelAgent
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "oracleforge-injective-nova-2026"
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# ── Global singletons (lazy-initialized on first /api/system/start) ──────────
+# ── Global singletons ────────────────────────────────────────────────────────
 
-_llm = None
-_signal_parser = None
+_llm = OpenAI(
+    api_key=settings.SIGNAL_ENGINE_API_KEY,
+    base_url=settings.SIGNAL_ENGINE_BASE_URL or None,
+)
+_debate_engine = DebateEngine(_llm, model=settings.SIGNAL_ENGINE_MODEL_NAME)
+_risk_committee = RiskCommittee(_llm, model=settings.SIGNAL_ENGINE_MODEL_NAME)
 _risk_manager = RiskManager(RiskConfig(
     total_capital_usd=float(os.getenv("TOTAL_CAPITAL_USD", "10000")),
     max_position_pct=float(os.getenv("MAX_POSITION_PCT", "0.05")),
@@ -38,6 +48,9 @@ _risk_manager = RiskManager(RiskConfig(
     max_leverage=int(os.getenv("MAX_LEVERAGE", "3")),
     profile=os.getenv("RISK_PROFILE", "medium"),
 ))
+_social = SocialSentinelAgent()
+_onchain = OnChainSentinelAgent()
+_macro = MacroSentinelAgent()
 _executor = InjectiveExecutor(
     private_key_hex=os.getenv("INJECTIVE_PRIVATE_KEY", ""),
     network=os.getenv("INJECTIVE_NETWORK", "testnet"),
@@ -54,20 +67,54 @@ _mcp = MCPInterface(_executor, _risk_manager)
 # ── Signal generation loop ────────────────────────────────────────────────────
 
 def _signal_loop():
-    """Background thread: every 5 minutes, parse forum log → signal → execute."""
+    """Background thread: every 5 minutes, run Bull/Bear debate → committee vote → execute."""
     while True:
         try:
-            forum_lines = get_forum_log()
-            if len(forum_lines) < 10:
-                time.sleep(60)
-                continue
-
-            forum_text = "\n".join(forum_lines[-200:])
-            market = _coingecko.get_market_data("INJ")
+            asset = "INJ"
+            market = _coingecko.get_market_data(asset)
             current_price = market.price_usd if market else 0.0
 
-            signal = _signal_parser.parse(forum_text, "INJ", current_price)
-            approved, reason, size_usd = _risk_manager.approve(signal)
+            # Step 1: collect sentinel summaries in parallel
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+                f_social  = pool.submit(_social.research,  asset, [asset])
+                f_onchain = pool.submit(_onchain.research, asset, [asset])
+                f_macro   = pool.submit(_macro.research,   asset, [asset])
+                social_s  = f_social.result()
+                onchain_s = f_onchain.result()
+                macro_s   = f_macro.result()
+
+            # Step 2: real Bull/Bear debate → Trader decision (with memory)
+            memory = get_trader_memory(asset)
+            decision = _debate_engine.run(social_s, onchain_s, macro_s, asset, memory=memory)
+
+            # Write debate log to forum so dashboard still shows it
+            from ForumEngine.monitor import _write
+            for line in decision["debate_log"].splitlines():
+                src = "BULL" if line.startswith("[BULL") else "BEAR" if line.startswith("[BEAR") else "TRADER"
+                _write(line, src)
+
+            # Step 3: build TradingSignal from debate decision
+            direction = Direction(decision.get("direction", "NEUTRAL"))
+            confidence = float(decision.get("confidence", 0.0))
+            sl, tps = calc_sl_tp(direction, current_price)
+            signal = TradingSignal(
+                asset=asset,
+                signal=direction,
+                confidence=confidence,
+                entry_range=(current_price * 0.998, current_price * 1.002),
+                stop_loss=sl,
+                take_profit=tps,
+                reasoning=decision.get("reasoning", ""),
+                consensus_tag=decision.get("consensus", ""),
+            )
+
+            # Step 4: risk committee votes (majority of 3)
+            base_size = _risk_manager.position_size_usd(confidence)
+            approved, size_usd, reason = _risk_committee.evaluate(decision, base_size)
+            # still honour daily loss guard from existing risk manager
+            if _risk_manager._suspended:
+                approved, reason = False, "Daily loss limit reached"
 
             logger.info(f"Signal: {signal.signal} conf={signal.confidence:.2f} approved={approved} ({reason})")
 
