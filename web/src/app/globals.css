@@ -1,0 +1,185 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "PingFang SC", -apple-system, "system-ui", "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, monospace;
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  /* Kimi Brand Colors */
+  --km-blue: #1783ff;
+  --km-blue-hover: #167ff7;
+  --km-blue-active: #167cf2;
+  --km-red: #ff3849;
+  --km-green: #16c456;
+  --km-yellow: #ffd230;
+  --km-purple: #985ffb;
+
+  /* Kimi Background Tokens */
+  --km-bg-ground: #f9fbfc;
+  --km-bg-primary: #ffffff;
+  --km-bg-secondary: #f5f5f5;
+
+  /* Kimi Label Tokens */
+  --km-label-primary: rgba(0, 0, 0, 0.9);
+  --km-label-secondary: rgba(0, 0, 0, 0.6);
+  --km-label-tertiary: rgba(0, 0, 0, 0.45);
+  --km-label-quaternary: rgba(0, 0, 0, 0.3);
+
+  /* Kimi Separator */
+  --km-sep: rgba(0, 0, 0, 0.13);
+  --km-fill-f1: rgba(0, 0, 0, 0.03);
+  --km-fill-f2: rgba(0, 0, 0, 0.05);
+
+  /* Kimi Typography Scale */
+  --km-t1: 18px;
+  --km-t1-lh: 26px;
+  --km-t2: 16px;
+  --km-t2-lh: 24px;
+  --km-b1: 15px;
+  --km-b1-lh: 22px;
+  --km-b2: 14px;
+  --km-b2-lh: 20px;
+  --km-c1: 12px;
+  --km-c1-lh: 18px;
+
+  /* shadcn/ui tokens — mapped to Kimi palette */
+  --background: oklch(1 0 0);         /* #fff */
+  --foreground: oklch(0.09 0 0);      /* rgba(0,0,0,0.9) ≈ */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.09 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.09 0 0);
+  --primary: oklch(0.55 0.2 250);     /* #1783ff */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.97 0 0);       /* #f5f5f5 */
+  --secondary-foreground: oklch(0.09 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.09 0 0);
+  --destructive: oklch(0.55 0.22 25); /* #ff3849 */
+  --border: oklch(0.92 0 0);
+  --input: oklch(0.92 0 0);
+  --ring: oklch(0.55 0.2 250);
+  --radius: 0.5rem;
+  --sidebar: oklch(0.977 0.002 247);  /* #f9fbfc */
+  --sidebar-foreground: oklch(0.09 0 0);
+  --sidebar-primary: oklch(0.55 0.2 250);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.09 0 0);
+  --sidebar-border: oklch(0.92 0 0);
+  --sidebar-ring: oklch(0.55 0.2 250);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.55 0.2 250);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.55 0.2 250);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.55 0.2 250);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.55 0.2 250);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+  body {
+    background-color: var(--km-bg-ground);
+    color: var(--km-label-primary);
+    font-family: -apple-system, "system-ui", "Segoe UI", system-ui, Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif, Arial, "PingFang SC", "Source Han Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC";
+    font-size: 14px;
+    line-height: 14px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Sidebar slide-in animation */
+.sidebar-hidden {
+  transform: translateX(-240px);
+}
+.sidebar-visible {
+  transform: translateX(0);
+}
+
+/* Activity carousel vertical scroll */
+@keyframes carousel-scroll {
+  0%   { transform: translateY(0); }
+  30%  { transform: translateY(0); }
+  33%  { transform: translateY(-84px); }
+  63%  { transform: translateY(-84px); }
+  66%  { transform: translateY(-168px); }
+  96%  { transform: translateY(-168px); }
+  100% { transform: translateY(-252px); }
+}
+
+.km-carousel {
+  animation: carousel-scroll 12s ease-in-out infinite;
+}
+

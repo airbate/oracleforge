@@ -354,3 +354,12 @@ CLAUDE.md
 findings.md
 progress.md
 task_plan.mdSentimentAnalysisModel/
+
+# OracleForge Next.js frontend
+web/node_modules/
+web/.next/
+web/out/
+web/.env
+web/.env.local
+web/.env.*.local
+
