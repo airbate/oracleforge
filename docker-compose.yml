@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  oracleforge:
+    build: .
+    container_name: oracleforge
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logs:/app/logs
+      - ./final_reports:/app/final_reports
+      - ./.env:/app/.env
+      - ./signals.db:/app/signals.db
