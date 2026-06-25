@@ -3,7 +3,8 @@
 import { useState } from "react";
 import PositionCard from "@/components/PositionCard";
 import SignalCard from "@/components/SignalCard";
-import { mockPositions, mockTrades, mockSignals } from "@/lib/mock";
+import { useSignals, usePositions } from "@/hooks/useData";
+import { mockTrades } from "@/lib/mock";
 import { cn } from "@/lib/utils";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
@@ -11,9 +12,12 @@ const tabs = ["当前持仓", "历史交易", "信号历史"];
 
 export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState("当前持仓");
+  const { data: positions, loading: positionsLoading } = usePositions();
+  const { data: signals, loading: signalsLoading } = useSignals();
 
-  const totalPnl = mockPositions.reduce((sum, p) => sum + p.unrealizedPnl, 0);
+  const totalPnl = positions.reduce((sum, p) => sum + p.unrealizedPnl, 0);
   const closedPnl = mockTrades.reduce((sum, t) => sum + t.pnl, 0);
+  const loading = activeTab === "当前持仓" ? positionsLoading : activeTab === "信号历史" ? signalsLoading : false;
 
   return (
     <div className="flex h-full flex-col">
@@ -62,15 +66,19 @@ export default function PortfolioPage() {
 
         {/* Content */}
         <div className="space-y-3">
-          {activeTab === "当前持仓" && (
-            mockPositions.length > 0 ? (
-              mockPositions.map((position) => <PositionCard key={position.id} position={position} />)
+          {loading && (
+            <div className="py-12 text-center text-sm text-black/40">加载中...</div>
+          )}
+
+          {!loading && activeTab === "当前持仓" && (
+            positions.length > 0 ? (
+              positions.map((position) => <PositionCard key={position.id} position={position} />)
             ) : (
               <div className="py-12 text-center text-sm text-black/40">暂无持仓</div>
             )
           )}
 
-          {activeTab === "历史交易" && (
+          {!loading && activeTab === "历史交易" && (
             <div className="rounded-2xl border border-black/[0.08] bg-white">
               <div className="grid grid-cols-6 gap-4 border-b border-black/[0.06] px-4 py-3 text-xs font-medium text-black/50">
                 <span>资产</span>
@@ -113,7 +121,7 @@ export default function PortfolioPage() {
             </div>
           )}
 
-          {activeTab === "信号历史" && mockSignals.map((signal) => <SignalCard key={signal.id} signal={signal} />)}
+          {!loading && activeTab === "信号历史" && signals.map((signal) => <SignalCard key={signal.id} signal={signal} />)}
         </div>
       </div>
     </div>
