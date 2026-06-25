@@ -10,6 +10,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template_string, request
 from flask_socketio import SocketIO, emit
+from flask_cors import CORS
 from loguru import logger
 from openai import OpenAI
 
@@ -32,6 +33,7 @@ from MacroSentinel.agent import MacroSentinelAgent
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "oracleforge-injective-nova-2026"
 socketio = SocketIO(app, cors_allowed_origins="*")
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"]}})
 
 # ── Global singletons ────────────────────────────────────────────────────────
 
@@ -458,6 +460,67 @@ def mcp_command():                              # Task 8.6: natural language tra
     return jsonify(result)
 
 
+@app.route("/api/config")
+def get_config():
+    """Return current settings for the dashboard (sensitive values masked)."""
+    def mask(v: str | None) -> str:
+        if not v:
+            return ""
+        return v[:4] + "****" if len(v) > 8 else "****"
+
+    return jsonify({
+        "llm": {
+            "default": {
+                "provider": "OpenAI",
+                "baseUrl": settings.SIGNAL_ENGINE_BASE_URL or "https://api.openai.com/v1",
+                "apiKey": mask(settings.SIGNAL_ENGINE_API_KEY),
+                "model": settings.SIGNAL_ENGINE_MODEL_NAME,
+            },
+            "Social": {
+                "provider": "OpenAI",
+                "baseUrl": settings.SIGNAL_ENGINE_BASE_URL or "https://api.openai.com/v1",
+                "apiKey": mask(settings.SIGNAL_ENGINE_API_KEY),
+                "model": settings.SIGNAL_ENGINE_MODEL_NAME,
+            },
+            "OnChain": {
+                "provider": "OpenAI",
+                "baseUrl": settings.SIGNAL_ENGINE_BASE_URL or "https://api.openai.com/v1",
+                "apiKey": mask(settings.SIGNAL_ENGINE_API_KEY),
+                "model": settings.SIGNAL_ENGINE_MODEL_NAME,
+            },
+            "Macro": {
+                "provider": "OpenAI",
+                "baseUrl": settings.SIGNAL_ENGINE_BASE_URL or "https://api.openai.com/v1",
+                "apiKey": mask(settings.SIGNAL_ENGINE_API_KEY),
+                "model": settings.SIGNAL_ENGINE_MODEL_NAME,
+            },
+            "Host": {
+                "provider": settings.FORUM_HOST_BASE_URL or "OpenAI",
+                "baseUrl": settings.FORUM_HOST_BASE_URL or "https://api.openai.com/v1",
+                "apiKey": mask(settings.FORUM_HOST_API_KEY),
+                "model": settings.FORUM_HOST_MODEL_NAME or settings.SIGNAL_ENGINE_MODEL_NAME,
+            },
+        },
+        "risk": {
+            "totalCapital": _risk_manager.config.total_capital_usd,
+            "maxPositionPercent": _risk_manager.config.max_position_pct * 100,
+            "maxDailyLoss": _risk_manager.config.total_capital_usd * _risk_manager.config.max_daily_loss_pct,
+            "leverageLimit": _risk_manager.config.max_leverage,
+        },
+        "dataSources": {
+            "twitterApiKey": mask(os.getenv("TWITTER_BEARER_TOKEN")),
+            "redditApiKey": mask(os.getenv("REDDIT_CLIENT_ID")),
+            "coingeckoApiKey": mask(os.getenv("COINGECKO_API_KEY")),
+        },
+        "injective": {
+            "network": os.getenv("INJECTIVE_NETWORK", "testnet"),
+            "privateKey": "****************",
+            "mock": os.getenv("INJECTIVE_MOCK", "true").lower() == "true",
+        },
+        "forumIntervalMinutes": 5,
+    })
+
+
 @app.route("/api/positions")
 def get_positions():
     return jsonify(_executor.query_positions())
@@ -491,4 +554,4 @@ if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "5000"))
     logger.info(f"OracleForge starting on http://{host}:{port}")
-    socketio.run(app, host=host, port=port, debug=False)
+    socketio.run(app, host=host, port=port, debug=False, allow_unsafe_werkzeug=True)

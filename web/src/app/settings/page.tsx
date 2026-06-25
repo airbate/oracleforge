@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { mockSettings } from "@/lib/mock";
+import { useSettings } from "@/hooks/useData";
 import { cn } from "@/lib/utils";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -10,6 +10,18 @@ const tabs = ["LLM 配置", "风险参数", "数据源", "Injective", "信号频
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("LLM 配置");
   const [showKey, setShowKey] = useState(false);
+  const { data: settings, loading } = useSettings();
+
+  if (loading || !settings) {
+    return (
+      <div className="flex h-full flex-col">
+        <header className="sticky top-0 z-10 flex h-[50px] items-center border-b border-black/5 bg-white/80 px-4 backdrop-blur-sm">
+          <span className="text-base font-bold text-black/90">系统设置</span>
+        </header>
+        <div className="flex flex-1 items-center justify-center text-sm text-black/40">加载配置中...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -41,7 +53,7 @@ export default function SettingsPage() {
           {activeTab === "LLM 配置" && (
             <div className="mx-auto max-w-2xl space-y-4">
               <div className="mb-4 text-lg font-bold text-black/90">LLM 配置</div>
-              {Object.entries(mockSettings.llm).map(([agent, config]) => (
+              {Object.entries(settings.llm).map(([agent, config]) => (
                 <div key={agent} className="rounded-2xl border border-black/[0.08] bg-white p-4">
                   <div className="mb-3 text-sm font-bold text-black/90">{agent === "default" ? "默认模型" : `${agent} Agent`}</div>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -75,10 +87,10 @@ export default function SettingsPage() {
               <div className="mb-4 text-lg font-bold text-black/90">风险参数</div>
               <div className="rounded-2xl border border-black/[0.08] bg-white p-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="总资金 (USDT)" defaultValue={mockSettings.risk.totalCapital.toString()} />
-                  <Field label="最大仓位 %" defaultValue={mockSettings.risk.maxPositionPercent.toString()} />
-                  <Field label="日内亏损上限 (USDT)" defaultValue={mockSettings.risk.maxDailyLoss.toString()} />
-                  <Field label="杠杆上限" defaultValue={mockSettings.risk.leverageLimit.toString()} />
+                  <Field label="总资金 (USDT)" defaultValue={settings.risk.totalCapital.toString()} />
+                  <Field label="最大仓位 %" defaultValue={settings.risk.maxPositionPercent.toString()} />
+                  <Field label="日内亏损上限 (USDT)" defaultValue={settings.risk.maxDailyLoss.toString()} />
+                  <Field label="杠杆上限" defaultValue={settings.risk.leverageLimit.toString()} />
                 </div>
               </div>
               <div className="rounded-xl border border-[#ffd230]/30 bg-[#ffd230]/[0.05] p-3 text-sm text-black/70">
@@ -92,9 +104,9 @@ export default function SettingsPage() {
               <div className="mb-4 text-lg font-bold text-black/90">数据源配置</div>
               <div className="rounded-2xl border border-black/[0.08] bg-white p-4">
                 <div className="grid gap-4">
-                  <Field label="Twitter / X API Key" defaultValue={mockSettings.dataSources.twitterApiKey ?? ""} />
-                  <Field label="Reddit API Key" defaultValue={mockSettings.dataSources.redditApiKey ?? ""} />
-                  <Field label="CoinGecko API Key" defaultValue={mockSettings.dataSources.coingeckoApiKey ?? ""} />
+                  <Field label="Twitter / X API Key" defaultValue={settings.dataSources.twitterApiKey ?? ""} />
+                  <Field label="Reddit API Key" defaultValue={settings.dataSources.redditApiKey ?? ""} />
+                  <Field label="CoinGecko API Key" defaultValue={settings.dataSources.coingeckoApiKey ?? ""} />
                 </div>
               </div>
             </div>
@@ -113,7 +125,7 @@ export default function SettingsPage() {
                 </div>
                 <Field label="私钥" type="password" defaultValue="****************" />
                 <div className="mt-3 flex items-center gap-2">
-                  <input type="checkbox" defaultChecked={mockSettings.injective.mock} id="mock" />
+                  <input type="checkbox" defaultChecked={settings.injective.mock} id="mock" />
                   <label htmlFor="mock" className="text-sm text-black/70">模拟交易（不实际上链）</label>
                 </div>
               </div>
@@ -126,13 +138,13 @@ export default function SettingsPage() {
               <div className="rounded-2xl border border-black/[0.08] bg-white p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm text-black/70">论坛辩论间隔</span>
-                  <span className="text-sm font-bold text-black/90">{mockSettings.forumIntervalMinutes} 分钟</span>
+                  <span className="text-sm font-bold text-black/90">{settings.forumIntervalMinutes} 分钟</span>
                 </div>
                 <input
                   type="range"
                   min={1}
                   max={60}
-                  defaultValue={mockSettings.forumIntervalMinutes}
+                  defaultValue={settings.forumIntervalMinutes}
                   className="w-full"
                 />
                 <div className="mt-4 flex items-center gap-2">

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bot, User, CheckCircle2, XCircle, ArrowUp } from "lucide-react";
+import { Bot, User, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import ChatEditor from "@/components/ChatEditor";
 import Time from "@/components/Time";
+import { sendMcpCommand } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type MessageType = "user" | "ai" | "system" | "result" | "error";
@@ -19,6 +20,7 @@ interface ChatMessage {
     leverage?: number;
     size?: string;
   };
+  loading?: boolean;
 }
 
 export default function ChatPage() {
@@ -30,6 +32,7 @@ export default function ChatPage() {
       timestamp: new Date().toISOString(),
     },
   ]);
+  const [pending, setPending] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +40,7 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = (text: string) => {
+  const handleSend = async (text: string) => {
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
       type: "user",
@@ -45,34 +48,29 @@ export default function ChatPage() {
       timestamp: new Date().toISOString(),
     };
 
-    let aiMsg: ChatMessage;
-    if (text.includes("做多") || text.includes("做空")) {
-      const asset = text.match(/[A-Z]{2,4}/)?.[0] ?? "INJ";
-      const direction = text.includes("做空") ? "做空" : "做多";
-      aiMsg = {
-        id: `c-${Date.now()}`,
-        type: "ai",
-        content: `请确认以下交易：\n\n${direction} ${asset} · 2x 杠杆 · 仓位 5%`,
-        timestamp: new Date().toISOString(),
-        meta: { asset, direction, leverage: 2, size: "5%" },
-      };
-    } else if (text.includes("持仓")) {
-      aiMsg = {
-        id: `c-${Date.now()}`,
-        type: "result",
-        content: "当前持仓：\n• INJ LONG 2x · 1500 枚 · 未实现盈亏 +$495\n• BTC SHORT 1.5x · 0.12 枚 · 未实现盈亏 +$169",
-        timestamp: new Date().toISOString(),
-      };
-    } else {
-      aiMsg = {
-        id: `c-${Date.now()}`,
-        type: "ai",
-        content: "我已收到你的问题。当前 Social/OnChain/Macro 三方对 INJ 的看法偏正面，但 Macro 提示非农数据风险，建议谨慎开仓。",
-        timestamp: new Date().toISOString(),
-      };
-    }
+    setMessages((prev) => [...prev, userMsg]);
+    setPending(true);
 
-    setMessages((prev) => [...prev, userMsg, aiMsg]);
+    try {
+      const res = await sendMcpCommand(text);
+      const aiMsg: ChatMessage = {
+        id: `c-${Date.now()}`,
+        type: "ai",
+        content: res.result,
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      const errorMsg: ChatMessage = {
+        id: `e-${Date.now()}`,
+        type: "error",
+        content: err instanceof Error ? err.message : "请求失败，请稍后重试",
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
@@ -86,6 +84,17 @@ export default function ChatPage() {
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
           ))}
+          {pending && (
+            <div className="flex gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/[0.06] text-black/60">
+                <Bot size={16} />
+              </div>
+              <div className="flex items-center gap-2 rounded-2xl border border-black/[0.08] bg-white px-4 py-3 text-sm text-black/60">
+                <Loader2 size={14} className="animate-spin" />
+                OracleForge 正在思考...
+              </div>
+            </div>
+          )}
           <div ref={bottomRef} />
         </div>
       </div>
