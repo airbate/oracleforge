@@ -6,6 +6,7 @@
 # ===== 核心Web框架 =====
 flask==2.3.3
 flask-socketio==5.3.6
+flask-cors==4.0.0
 streamlit==1.28.1
 python-socketio==5.8.0
 eventlet==0.33.3

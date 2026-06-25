@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import ForumMessageCard from "@/components/ForumMessageCard";
-import { mockForumMessages } from "@/lib/mock";
-import { MessageSquare, Sparkles } from "lucide-react";
+import { useForum } from "@/hooks/useData";
+import { Sparkles } from "lucide-react";
 
 export default function ForumPage() {
   const [round, setRound] = useState(12);
+  const { data: messages, loading } = useForum();
 
   return (
     <div className="flex h-full flex-col">
@@ -29,28 +30,32 @@ export default function ForumPage() {
             <div className="h-px flex-1 bg-black/[0.08]" />
           </div>
 
-          {mockForumMessages.map((msg) => (
-            <ForumMessageCard key={msg.id} message={msg} />
-          ))}
+          {loading ? (
+            <div className="py-12 text-center text-sm text-black/40">加载论坛消息...</div>
+          ) : (
+            messages.map((msg) => <ForumMessageCard key={msg.id} message={msg} />)
+          )}
 
           {/* Suggested action */}
-          <div className="rounded-xl border border-[#1783ff]/20 bg-[#1783ff]/[0.03] p-4">
-            <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#1783ff]">
-              <Sparkles size={16} />
-              Host 建议
+          {!loading && (
+            <div className="rounded-xl border border-[#1783ff]/20 bg-[#1783ff]/[0.03] p-4">
+              <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#1783ff]">
+                <Sparkles size={16} />
+                Host 建议
+              </div>
+              <div className="text-sm text-black/70">
+                三方对 INJ 看法存在分歧，Social/OnChain 偏多，Macro 提示非农数据风险。建议等待数据公布后再开仓，或降低仓位。
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button className="rounded-lg bg-[#1783ff] px-3 py-1.5 text-xs font-medium text-white">
+                  发起调查
+                </button>
+                <button className="rounded-lg border border-black/[0.13] bg-white px-3 py-1.5 text-xs font-medium text-black/70">
+                  继续观察
+                </button>
+              </div>
             </div>
-            <div className="text-sm text-black/70">
-              三方对 INJ 看法存在分歧，Social/OnChain 偏多，Macro 提示非农数据风险。建议等待数据公布后再开仓，或降低仓位。
-            </div>
-            <div className="mt-3 flex gap-2">
-              <button className="rounded-lg bg-[#1783ff] px-3 py-1.5 text-xs font-medium text-white">
-                发起调查
-              </button>
-              <button className="rounded-lg border border-black/[0.13] bg-white px-3 py-1.5 text-xs font-medium text-black/70">
-                继续观察
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

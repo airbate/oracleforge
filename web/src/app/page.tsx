@@ -7,7 +7,8 @@ import SignalCard from "@/components/SignalCard";
 import RiskProgress from "@/components/RiskProgress";
 import ChatEditor from "@/components/ChatEditor";
 import Time from "@/components/Time";
-import { mockSignals, mockPrices } from "@/lib/mock";
+import { useSignals } from "@/hooks/useData";
+import { mockPrices } from "@/lib/mock";
 import type { Asset } from "@/types";
 import {
   Activity,
@@ -21,9 +22,10 @@ import Link from "next/link";
 
 export default function DashboardPage() {
   const [activeAsset, setActiveAsset] = useState<Asset>("INJ");
+  const { data: signals, loading } = useSignals();
   const price = mockPrices[activeAsset];
 
-  const assetSignals = mockSignals.filter((s) => s.asset === activeAsset);
+  const assetSignals = signals.filter((s) => s.asset === activeAsset);
 
   return (
     <div className="flex min-h-full flex-col">
@@ -54,7 +56,7 @@ export default function DashboardPage() {
 
         {/* Stats */}
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
-          <StatCard label="总信号" value="128" change="+12 本周" changeType="positive" icon={<Activity size={16} />} />
+          <StatCard label="总信号" value={signals.length} change="+12 本周" changeType="positive" icon={<Activity size={16} />} />
           <StatCard label="胜率" value="62.5%" change="+3.2%" changeType="positive" icon={<BarChart3 size={16} />} />
           <StatCard label="累计盈亏" value="+$4,281" change="+18.4%" changeType="positive" icon={<TrendingUp size={16} />} />
           <StatCard label="运行时长" value="14d 6h" change="稳定" changeType="neutral" icon={<MessageSquare size={16} />} />
@@ -79,7 +81,9 @@ export default function DashboardPage() {
                 </Link>
               </div>
               <div className="space-y-3">
-                {assetSignals.length > 0 ? (
+                {loading ? (
+                  <div className="py-8 text-center text-sm text-black/40">加载中...</div>
+                ) : assetSignals.length > 0 ? (
                   assetSignals.map((signal) => <SignalCard key={signal.id} signal={signal} />)
                 ) : (
                   <div className="py-8 text-center text-sm text-black/40">暂无 {activeAsset} 信号</div>
@@ -103,33 +107,37 @@ export default function DashboardPage() {
             <div className="rounded-2xl border border-black/[0.08] bg-white p-4">
               <div className="mb-4 text-base font-bold text-black/90">信号时间线</div>
               <div className="space-y-4">
-                {mockSignals.slice(0, 4).map((signal) => (
-                  <div key={signal.id} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <div
-                        className={`h-2 w-2 rounded-full ${
-                          signal.direction === "LONG"
-                            ? "bg-[#16c456]"
-                            : signal.direction === "SHORT"
-                            ? "bg-[#ff3849]"
-                            : "bg-black/30"
-                        }`}
-                      />
-                      <div className="mt-1 h-full w-px bg-black/[0.08]" />
-                    </div>
-                    <div className="pb-4">
-                      <Time
-                        date={signal.createdAt}
-                        options={{ hour: "2-digit", minute: "2-digit" }}
-                        className="text-xs text-black/40"
-                      />
-                      <div className="text-sm font-medium text-black/90">
-                        {signal.asset} {signal.direction} · 置信度 {signal.confidence}%
+                {loading ? (
+                  <div className="py-4 text-center text-sm text-black/40">加载中...</div>
+                ) : (
+                  signals.slice(0, 4).map((signal) => (
+                    <div key={signal.id} className="flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={`h-2 w-2 rounded-full ${
+                            signal.direction === "LONG"
+                              ? "bg-[#16c456]"
+                              : signal.direction === "SHORT"
+                              ? "bg-[#ff3849]"
+                              : "bg-black/30"
+                          }`}
+                        />
+                        <div className="mt-1 h-full w-px bg-black/[0.08]" />
                       </div>
-                      <div className="text-xs text-black/50 line-clamp-1">{signal.reasoning}</div>
+                      <div className="pb-4">
+                        <Time
+                          date={signal.createdAt}
+                          options={{ hour: "2-digit", minute: "2-digit" }}
+                          className="text-xs text-black/40"
+                        />
+                        <div className="text-sm font-medium text-black/90">
+                          {signal.asset} {signal.direction} · 置信度 {signal.confidence}%
+                        </div>
+                        <div className="text-xs text-black/50 line-clamp-1">{signal.reasoning}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </div>
