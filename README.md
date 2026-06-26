@@ -34,12 +34,12 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        OracleForge                          │
-│                                                              │
-│  SocialSentinel   OnChainSentinel   MacroSentinel            │
-│  ─────────────    ──────────────    ─────────────            │
+│                                                             │
+│  SocialSentinel   OnChainSentinel   MacroSentinel           │
+│  ─────────────    ──────────────    ─────────────           │
 │  Twitter/X        Injective RPC     美联储/CPI日历            │
-│  Reddit           CoinGecko         BTC主导率               │
-│  CryptoPanic      OI / 资金费率     市场环境判断             │
+│  Reddit           CoinGecko         BTC主导率                │
+│  CryptoPanic      OI / 资金费率     市场环境判断                │
 │       │                │                  │                  │
 │       └────────────────┼──────────────────┘                  │
 │                        ▼                                      │
