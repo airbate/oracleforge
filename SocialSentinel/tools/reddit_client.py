@@ -16,9 +16,13 @@ SUBREDDITS = ["CryptoCurrency", "CryptoMarkets", "investing", "Bitcoin"]
 
 
 class RedditClient:
-    def __init__(self, client_id: str, client_secret: str, user_agent: str = "novasentinel/1.0"):
+    def __init__(self, client_id: Optional[str] = None, client_secret: Optional[str] = None, user_agent: str = "novasentinel/1.0"):
         if not PRAW_AVAILABLE:
             logger.warning("RedditClient: praw not installed, client disabled")
+            self._reddit = None
+            return
+        if not client_id or not client_secret:
+            logger.info("RedditClient: credentials incomplete, disabled")
             self._reddit = None
             return
         self._reddit = praw.Reddit(

@@ -28,7 +28,10 @@ class OnChainSentinelAgent:
         chain = self._inj.get_perpetual_market(f"{asset}/USDT")
 
         if market is None and chain is None:
-            result = f"[ONCHAIN] No data for {asset}. Sentiment: NEUTRAL (confidence: 0.4)"
+            result = (
+                f"[ONCHAIN] No data available for {asset}. "
+                f"Sentiment: NEUTRAL (confidence: 0.4)"
+            )
             logger.info(result)
             return result
 
@@ -45,22 +48,26 @@ class OnChainSentinelAgent:
                 f"Open interest: ${chain.open_interest_usd:,.0f}\n"
             )
 
-        response = self._llm.chat.completions.create(
-            model=settings.SIGNAL_ENGINE_MODEL_NAME,
-            messages=[
-                {"role": "system", "content": (
-                    "You are an on-chain crypto analyst. Analyze the market data and return:\n"
-                    "SENTIMENT: BULLISH|BEARISH|NEUTRAL\n"
-                    "CONFIDENCE: 0.0-1.0\n"
-                    "KEY_SIGNALS: bullet points (funding extremes, OI changes, whale moves)\n"
-                    "SUMMARY: one sentence"
-                )},
-                {"role": "user", "content": f"Asset: {asset}\nQuery: {query}\n\n{data_text}"},
-            ],
-            max_tokens=250,
-        )
+        try:
+            response = self._llm.chat.completions.create(
+                model=settings.SIGNAL_ENGINE_MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": (
+                        "You are an on-chain crypto analyst. Analyze the market data and return:\n"
+                        "SENTIMENT: BULLISH|BEARISH|NEUTRAL\n"
+                        "CONFIDENCE: 0.0-1.0\n"
+                        "KEY_SIGNALS: bullet points (funding extremes, OI changes, whale moves)\n"
+                        "SUMMARY: one sentence"
+                    )},
+                    {"role": "user", "content": f"Asset: {asset}\nQuery: {query}\n\n{data_text}"},
+                ],
+                max_tokens=250,
+            )
+            analysis = response.choices[0].message.content.strip()
+        except Exception as e:
+            logger.warning(f"OnChainSentinel: LLM analysis failed ({e}), returning neutral")
+            analysis = f"SENTIMENT: NEUTRAL\nCONFIDENCE: 0.4\nKEY_SIGNALS: none\nSUMMARY: LLM analysis unavailable"
 
-        analysis = response.choices[0].message.content.strip()
         result = f"[ONCHAIN] {asset} | {query}\n{data_text}{analysis}"
         logger.info(result)
         return result
