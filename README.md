@@ -100,6 +100,8 @@ cp .env.example .env
 ```bash
 SIGNAL_ENGINE_API_KEY=sk-your-openai-key
 FORUM_HOST_API_KEY=sk-your-forum-host-key
+FLASK_SECRET_KEY=$(openssl rand -hex 32)   # 生产环境必须设置强随机密钥
+ADMIN_API_KEY=$(openssl rand -hex 32)      # 管理后台 API Key，保护敏感端点
 ```
 
 **零配置演示**（不调用真实 LLM，不实际上链）：
@@ -110,6 +112,30 @@ FORUM_HOST_API_KEY=sk-placeholder
 INJECTIVE_MOCK=true
 ```
 
+### 2.1 私钥安全存储（重要）
+
+⚠️ **不要把 `INJECTIVE_PRIVATE_KEY` 直接写在 `.env` 里。**
+
+OracleForge 使用系统钥匙串（macOS Keychain）或 AES 加密文件存储私钥。
+
+**macOS / 有 GUI 的环境（推荐）：**
+
+```bash
+python -m utils.key_manager import --key 0x你的私钥
+```
+
+**无 GUI / CI / 服务器环境（加密文件回退）：**
+
+```bash
+KEY_STORAGE_BACKEND=encrypted_file KEY_FILE_PASSWORD=强密码 python -m utils.key_manager import --key 0x你的私钥
+```
+
+导入完成后，从 `.env` 和 shell history 中删除 `INJECTIVE_PRIVATE_KEY`。验证是否存储成功：
+
+```bash
+python -m utils.key_manager check
+```
+
 ### 3. 安装后端依赖
 
 ```bash
@@ -118,13 +144,15 @@ pip install -r requirements.txt
 
 > 注意：Python 3.13 用户可能需要放宽 pydantic 版本限制，使用 `pydantic>=2.5.2`。
 
-### 4. 启动后端
+### 4. 启动后端（API-only 模式）
 
 ```bash
 python nova_app.py
 ```
 
-后端运行在 `http://localhost:5000`。
+后端运行在 `http://localhost:5000`。Flask 现在只提供 API，`/` 会显示一个状态页，提示你使用 Next.js 前端。
+
+> 旧的内嵌 Flask Dashboard 已被移除，统一使用 `web/` 中的 Node.js/Next.js 前端。
 
 ### 5. 安装并启动前端
 
@@ -132,6 +160,8 @@ python nova_app.py
 
 ```bash
 cd web
+cp .env.local.example .env.local
+# 编辑 .env.local，如果后端设置了 ADMIN_API_KEY，请填写 NEXT_PUBLIC_ADMIN_API_KEY
 npm install
 npm run dev
 ```
@@ -189,6 +219,13 @@ NEXT_PUBLIC_USE_MOCK=false npm run dev
 |---|---|---|
 | `HOST` | Flask 监听地址 | `0.0.0.0` |
 | `PORT` | Flask 端口 | `5000` |
+| `FLASK_SECRET_KEY` | Flask 会话密钥（生产环境必须设置） | — |
+| `ENV` | 运行环境：`development` 或 `production` | `development` |
+| `ADMIN_API_KEY` | 管理后台 API Key，保护敏感端点 | — |
+| `PUBLIC_READ_ACCESS` | 是否允许匿名只读访问（GET/HEAD） | `false` |
+| `KEY_STORAGE_BACKEND` | 私钥存储后端：`keyring` 或 `encrypted_file` | `keyring` |
+| `KEY_FILE_PASSWORD` | `encrypted_file` 后端的加密密码 | — |
+| `KEY_FILE_PATH` | 加密文件路径（默认 `~/.oracleforge/key.enc`） | — |
 | `SIGNAL_ENGINE_API_KEY` | 信号解析 LLM API Key | — |
 | `SIGNAL_ENGINE_BASE_URL` | 信号解析 LLM Base URL | `https://api.openai.com/v1` |
 | `SIGNAL_ENGINE_MODEL_NAME` | 信号解析模型 | `gpt-4o-mini` |
@@ -199,8 +236,9 @@ NEXT_PUBLIC_USE_MOCK=false npm run dev
 | `REDDIT_CLIENT_ID` | Reddit app client ID | — |
 | `REDDIT_CLIENT_SECRET` | Reddit app client secret | — |
 | `COINGECKO_API_KEY` | CoinGecko Pro API Key | — |
+| `TRADING_ASSETS` | 交易资产列表，逗号分隔 | `INJ` |
 | `INJECTIVE_NETWORK` | `testnet` 或 `mainnet` | `testnet` |
-| `INJECTIVE_PRIVATE_KEY` | 钱包私钥（hex） | — |
+| `INJECTIVE_PRIVATE_KEY` | ⚠️ **已废弃**，请用 `utils/key_manager.py` 导入 | — |
 | `INJECTIVE_MOCK` | `true`=不真正上链 | `true` |
 | `TOTAL_CAPITAL_USD` | 总资金 | `10000` |
 | `MAX_POSITION_PCT` | 单笔最大仓位比例 | `0.05` |
@@ -214,14 +252,16 @@ NEXT_PUBLIC_USE_MOCK=false npm run dev
 
 | 端点 | 方法 | 说明 |
 |---|---|---|
-| `GET /` | GET | Flask 内嵌仪表盘 |
-| `/api/system/start` | POST | 启动 Agent 与信号循环 |
-| `/api/system/stop` | POST | 停止系统 |
+| `GET /` | GET | API 状态页（提示使用 Next.js 前端） |
+| `/api/system/start` | POST | 启动 Agent 与信号循环（需 `X-API-Key`） |
+| `/api/system/stop` | POST | 停止系统（需 `X-API-Key`） |
+| `/api/system/status` | GET | 信号循环运行状态 |
+| `/api/system/errors` | GET | 最近 loop 错误日志 |
 | `/api/signals` | GET | 最近信号 |
-| `/api/signals/<id>/result` | POST | 标记信号结果（TP/SL/EXPIRED） |
+| `/api/signals/<id>/result` | POST | 标记信号结果（TP/SL/EXPIRED，需 `X-API-Key`） |
 | `/api/positions` | GET | 当前 Injective 持仓 |
 | `/api/forum/log` | GET | 论坛辩论日志 |
-| `/api/mcp` | POST | 自然语言交易指令 |
+| `/api/mcp` | POST | 自然语言交易指令（需 `X-API-Key`） |
 | `/api/config` | GET | 当前系统配置（前端设置页用） |
 
 **MCP 示例：**
@@ -229,8 +269,12 @@ NEXT_PUBLIC_USE_MOCK=false npm run dev
 ```bash
 curl -X POST http://localhost:5000/api/mcp \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: $ADMIN_API_KEY" \
   -d '{"text": "Buy 5% INJ 2x", "price": 25.0}'
 ```
+
+> 当 `ADMIN_API_KEY` 已配置时，所有敏感端点（`POST /api/system/start`、`POST /api/system/stop`、`POST /api/mcp`、`POST /api/signals/<id>/result`）都需要在请求头中携带 `X-API-Key`。
+> 只读端点（`GET /api/signals`、`GET /api/positions` 等）默认需要认证；设置 `PUBLIC_READ_ACCESS=true` 可允许匿名访问。
 
 ---
 
@@ -238,7 +282,7 @@ curl -X POST http://localhost:5000/api/mcp \
 
 ```
 oracleforge/
-├── nova_app.py              # Flask 主程序 + API + 信号循环
+├── nova_app.py              # Flask 主程序（API-only）
 ├── config.py                # Pydantic Settings
 ├── .env.example             # 环境变量模板
 ├── requirements.txt         # Python 依赖
@@ -266,7 +310,7 @@ oracleforge/
 │   ├── executor.py          # iAgent SDK 执行
 │   └── mcp_interface.py     # 自然语言指令解析
 │
-├── web/                     # Next.js 16 前端
+├── web/                     # Next.js 16 前端（Node.js，唯一正式 UI）
 │   ├── src/app/             # 页面路由
 │   ├── src/components/      # 组件
 │   ├── src/hooks/useData.ts # 后端 API hooks
@@ -335,6 +379,37 @@ npm run dev -- --port 3002
 rm -f signals.db
 python nova_app.py
 ```
+
+---
+
+## 迁移说明
+
+### 从旧版 `.env` 迁移
+
+如果你之前把 `INJECTIVE_PRIVATE_KEY` 写在 `.env` 里，请按以下步骤迁移：
+
+1. 安装新依赖：
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. 把私钥导入安全存储：
+   ```bash
+   python -m utils.key_manager import --key $INJECTIVE_PRIVATE_KEY
+   ```
+
+3. 从 `.env` 中删除 `INJECTIVE_PRIVATE_KEY` 这一行，并清空 shell history：
+   ```bash
+   history -c  # 或在 ~/.zsh_history 中手动删除相关行
+   ```
+
+4. 添加新的安全配置：
+   ```bash
+   FLASK_SECRET_KEY=$(openssl rand -hex 32)
+   ADMIN_API_KEY=$(openssl rand -hex 32)
+   ```
+
+5. 重启后端。
 
 ---
 
