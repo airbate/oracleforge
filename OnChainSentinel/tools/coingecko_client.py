@@ -11,7 +11,19 @@ COIN_ID_MAP = {
     "INJ": "injective-protocol",
     "BTC": "bitcoin",
     "ETH": "ethereum",
+    "SOL": "solana",
+    "ARB": "arbitrum",
+    "OP": "optimism",
+    "LINK": "chainlink",
+    "AAVE": "aave",
+    "SNX": "havven",
+    "CRV": "curve-dao-token",
 }
+
+
+def get_coingecko_id(asset: str) -> str:
+    """Map a trading symbol to a CoinGecko ID. Falls back to lowercase symbol."""
+    return COIN_ID_MAP.get(asset.upper(), asset.lower())
 
 
 @dataclass
@@ -22,6 +34,7 @@ class MarketData:
     volume_24h_usd: float
     price_change_24h_pct: float
     btc_dominance_pct: float = 0.0
+    coingecko_id: str = ""
 
 
 class CoinGeckoClient:
@@ -29,7 +42,7 @@ class CoinGeckoClient:
         self._headers = {"x-cg-demo-api-key": api_key} if api_key else {}
 
     def get_market_data(self, asset: str = "INJ") -> Optional[MarketData]:
-        coin_id = COIN_ID_MAP.get(asset.upper(), asset.lower())
+        coin_id = get_coingecko_id(asset)
         try:
             r = requests.get(
                 f"{CG_BASE}/coins/markets",
@@ -50,9 +63,10 @@ class CoinGeckoClient:
                 volume_24h_usd=c.get("total_volume", 0),
                 price_change_24h_pct=c.get("price_change_percentage_24h", 0),
                 btc_dominance_pct=dominance,
+                coingecko_id=coin_id,
             )
         except Exception as e:
-            logger.warning(f"CoinGeckoClient: failed ({e})")
+            logger.warning(f"CoinGeckoClient: failed for {asset} ({e})")
             return None
 
     def _get_btc_dominance(self) -> float:

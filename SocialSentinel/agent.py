@@ -32,14 +32,29 @@ class SocialSentinelAgent:
         keywords = assets + query.split()[:3]
 
         posts = []
+        sources_used: list[str] = []
         if self._twitter:
-            posts += self._twitter.search(keywords, max_results=15)
+            twitter_posts = self._twitter.search(keywords, max_results=15)
+            posts += twitter_posts
+            if twitter_posts:
+                sources_used.append("twitter")
         if self._reddit:
-            posts += self._reddit.search(keywords, limit=15)
-        posts += self._cryptopanic.fetch(keywords, limit=15)
+            reddit_posts = self._reddit.search(keywords, limit=15)
+            posts += reddit_posts
+            if reddit_posts:
+                sources_used.append("reddit")
+        cryptopanic_posts = self._cryptopanic.fetch(keywords, limit=15)
+        posts += cryptopanic_posts
+        if cryptopanic_posts:
+            sources_used.append("cryptopanic")
 
         if not posts:
-            result = f"[SOCIAL] No posts found for {assets}. Sentiment: NEUTRAL (confidence: 0.4)"
+            sources_str = ", ".join(sources_used) if sources_used else "none available"
+            result = (
+                f"[SOCIAL] No posts found for {assets}. "
+                f"Sources checked: {sources_str}. "
+                f"Sentiment: NEUTRAL (confidence: 0.4)"
+            )
             logger.info(result)
             return result
 
@@ -47,22 +62,27 @@ class SocialSentinelAgent:
             f"[{p.source}] {p.content[:200]}" for p in posts[:30]
         )
 
-        response = self._llm.chat.completions.create(
-            model=settings.SIGNAL_ENGINE_MODEL_NAME,
-            messages=[
-                {"role": "system", "content": (
-                    "You are a crypto sentiment analyst. Analyze the posts and return:\n"
-                    "SENTIMENT: BULLISH|BEARISH|NEUTRAL\n"
-                    "CONFIDENCE: 0.0-1.0\n"
-                    "SUMMARY: one sentence\n"
-                    "Be concise and factual."
-                )},
-                {"role": "user", "content": f"Assets: {assets}\n\nPosts:\n{snippets}"},
-            ],
-            max_tokens=200,
-        )
+        try:
+            response = self._llm.chat.completions.create(
+                model=settings.SIGNAL_ENGINE_MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": (
+                        "You are a crypto sentiment analyst. Analyze the posts and return:\n"
+                        "SENTIMENT: BULLISH|BEARISH|NEUTRAL\n"
+                        "CONFIDENCE: 0.0-1.0\n"
+                        "SUMMARY: one sentence\n"
+                        "Be concise and factual."
+                    )},
+                    {"role": "user", "content": f"Assets: {assets}\n\nPosts:\n{snippets}"},
+                ],
+                max_tokens=200,
+            )
+            analysis = response.choices[0].message.content.strip()
+        except Exception as e:
+            logger.warning(f"SocialSentinel: LLM analysis failed ({e}), returning neutral")
+            analysis = f"SENTIMENT: NEUTRAL\nCONFIDENCE: 0.4\nSUMMARY: LLM analysis unavailable"
 
-        analysis = response.choices[0].message.content.strip()
-        result = f"[SOCIAL] {query} | assets={assets}\n{analysis}\n(posts_analyzed={len(posts)})"
+        sources_str = ", ".join(sources_used) if sources_used else "cryptopanic"
+        result = f"[SOCIAL] {query} | assets={assets} | sources={sources_str}\n{analysis}\n(posts_analyzed={len(posts)})"
         logger.info(result)
         return result

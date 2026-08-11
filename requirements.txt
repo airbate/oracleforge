@@ -6,6 +6,7 @@
 # ===== 核心Web框架 =====
 flask==2.3.3
 flask-socketio==5.3.6
+flask-cors==4.0.0
 streamlit==1.28.1
 python-socketio==5.8.0
 eventlet==0.33.3
@@ -21,6 +22,10 @@ PySocks>=1.7.1
 # ===== LLM接口 =====
 openai>=1.3.0
 # deepseek-ai>=0.1.0  # 使用OpenAI格式
+
+# ===== 安全与密钥存储 =====
+keyring>=25.0.0
+cryptography>=42.0.0
 
 # ===== 搜索API =====
 tavily-python>=0.3.0

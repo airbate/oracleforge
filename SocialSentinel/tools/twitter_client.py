@@ -23,10 +23,17 @@ class SocialPost:
 class TwitterClient:
     """Task 2.1: Keyword-based Twitter/X search (v2 Bearer Token)."""
 
-    def __init__(self, bearer_token: str):
+    def __init__(self, bearer_token: Optional[str] = None):
+        if not bearer_token:
+            logger.info("TwitterClient: no bearer token provided, disabled")
+            self._client = None
+            return
         self._client = tweepy.Client(bearer_token=bearer_token, wait_on_rate_limit=False)
 
     def search(self, keywords: list[str], max_results: int = 20) -> list[SocialPost]:
+        if not self._client:
+            return []
+        query = " OR ".join(keywords) + " -is:retweet lang:en"
         query = " OR ".join(keywords) + " -is:retweet lang:en"
         try:
             resp = self._client.search_recent_tweets(

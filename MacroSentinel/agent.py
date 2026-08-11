@@ -34,27 +34,31 @@ class MacroSentinelAgent:
             if btc_data else "BTC data unavailable"
         )
 
-        response = self._llm.chat.completions.create(
-            model=settings.SIGNAL_ENGINE_MODEL_NAME,
-            messages=[
-                {"role": "system", "content": (
-                    "You are a macro crypto analyst. Assess macro impact on the target asset and return:\n"
-                    "MACRO_BIAS: BULLISH|BEARISH|NEUTRAL\n"
-                    "CONFIDENCE: 0.0-1.0\n"
-                    "SUMMARY: one sentence\n"
-                    "Consider upcoming events as risk factors."
-                )},
-                {"role": "user", "content": (
-                    f"Asset: {asset}\nQuery: {query}\n\n"
-                    f"{events_text}\n\n"
-                    f"{btc_line}\n"
-                    f"Confidence multiplier from calendar: {multiplier}"
-                )},
-            ],
-            max_tokens=200,
-        )
+        try:
+            response = self._llm.chat.completions.create(
+                model=settings.SIGNAL_ENGINE_MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": (
+                        "You are a macro crypto analyst. Assess macro impact on the target asset and return:\n"
+                        "MACRO_BIAS: BULLISH|BEARISH|NEUTRAL\n"
+                        "CONFIDENCE: 0.0-1.0\n"
+                        "SUMMARY: one sentence\n"
+                        "Consider upcoming events as risk factors."
+                    )},
+                    {"role": "user", "content": (
+                        f"Asset: {asset}\nQuery: {query}\n\n"
+                        f"{events_text}\n\n"
+                        f"{btc_line}\n"
+                        f"Confidence multiplier from calendar: {multiplier}"
+                    )},
+                ],
+                max_tokens=200,
+            )
+            analysis = response.choices[0].message.content.strip()
+        except Exception as e:
+            logger.warning(f"MacroSentinel: LLM analysis failed ({e}), returning neutral")
+            analysis = f"MACRO_BIAS: NEUTRAL\nCONFIDENCE: 0.4\nSUMMARY: LLM analysis unavailable"
 
-        analysis = response.choices[0].message.content.strip()
         result = (
             f"[MACRO] {asset} | conf_multiplier={multiplier}\n"
             f"{events_text}\n{btc_line}\n{analysis}"
